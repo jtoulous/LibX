@@ -19,7 +19,7 @@ class GAN():
         self.epochs = epochs
         self.batch_size = batch_size
 
-        self.loss_fcn = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        self.loss_fcn = tf.keras.losses.BinaryCrossentropy(from_logits=False)  #####  ici , j ai changer cette mer2, mais a checker
         self.disc_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
         self.gen_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
 
