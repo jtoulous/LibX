@@ -86,7 +86,6 @@ class GAN():
         y = tf.convert_to_tensor(y, dtype=tf.float32)
 
         with tf.GradientTape() as tape:
-            tape.watch(self.discriminator.trainable_variables)
             predictions = self.discriminator(X, training=True)
             predicted_class = tf.argmax(predictions, axis=1)
             loss = self.loss_fcn(y, tf.cast(predicted_class, tf.float32))
