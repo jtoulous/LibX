@@ -11,15 +11,13 @@ from sklearn.preprocessing import StandardScaler
 
 
 class GAN():
-    def __init__(self, noise_dim, classes, features, epochs=300, batch_size=32, save=None, load=None):
-        self.features = features
-        self.classes = classes
+    def __init__(self, noise_dim, features, epochs=300, batch_size=32, save=None, load=None):
         self.noise_dim = noise_dim
         self.features_dim = len(features)
         self.epochs = epochs
         self.batch_size = batch_size
 
-        self.loss_fcn = tf.keras.losses.BinaryCrossentropy(from_logits=False)  #####  ici , j ai changer cette mer2, mais a checker
+        self.loss_fcn = tf.keras.losses.BinaryCrossentropy(from_logits=False)
         self.disc_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
         self.gen_optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
 
@@ -43,99 +41,80 @@ class GAN():
             self.generator = load_model(f'data/GAN/generator_{crypto}')
         
 
-    def fit(self, dataframe):
-        dataframe = dataframe[self.features]
-        dataframe['LABEL'] = 1
+    def fit(self, df):
+        dataset = tf.convert_to_tensor(df.values, dtype=tf.float32)
+        dataset = tf.data.Dataset.from_tensor_slices(dataset)
+        
         for epoch in range(self.epochs):
             print(f'\nEPOCH {epoch}')
-            
-            disc_losses = []
-            gen_losses = []
-            batches = self.CreateBatches(dataframe)
+            losses = {'discriminator': [], 'generator': []}
+            dataset_shuffled = dataset.shuffle(buffer_size=len(dataset))
+            batches = dataset_shuffled.batch(self.batch_size, drop_remainder=True)
             for batch in batches:
-                disc_losses.append(self.TrainDiscriminator(batch.copy()))
-                breakpoint()
-                gen_losses.append(self.TrainGenerator(batch))
+                losses['discriminator'].append(self.TrainDiscriminator(batch))
+                losses['generator'].append(self.TrainGenerator())
 
-            avg_disc_loss = sum(disc_losses) / len(disc_losses)
-            avg_gen_loss = sum(gen_losses) / len(gen_losses)
+            avg_disc_loss = sum(losses['discriminator']) / len(losses['discriminator'])
+            avg_gen_loss = sum(losses['generator']) / len(losses['generator'])
             print(f'discriminator loss = {avg_disc_loss:.4f}')
             print(f'generator loss = {avg_gen_loss:.4f}')
         
         return self
 
 
-#def save(self):
-
-
-#    def Generate(nb_generation): # when training is done, gen synthetic data
-
-
-
     def TrainDiscriminator(self, batch):
-        noise = tf.random.normal([self.batch_size, self.noise_dim])
+        noise = tf.random.normal([len(batch), self.noise_dim])
         generated_data = self.generator(noise)
-        generated_df = pd.DataFrame(generated_data.numpy(), columns=self.features)
-        generated_df['LABEL'] = 0
-        batch = pd.concat([batch, generated_df], ignore_index=True)
 
-        X = batch[self.features].values
-        y = batch['LABEL'].values
+        real_labels = tf.ones_like(batch[:, 0])
+        fake_labels = tf.zeros_like(generated_data[:, 0])
 
-        X = tf.convert_to_tensor(X, dtype=tf.float32)
-        y = tf.convert_to_tensor(y, dtype=tf.float32)
+        X = tf.concat([batch, generated_data], axis=0)
+        y = tf.concat([real_labels, fake_labels], axis=0)
+
+        idx = tf.range(start=0, limit=tf.shape(X)[0], dtype=tf.int32)
+        shuffled_idx = tf.random.shuffle(idx)
+
+        X = tf.gather(X, shuffled_idx)
+        y = tf.gather(y, shuffled_idx)
 
         with tf.GradientTape() as tape:
             predictions = self.discriminator(X, training=True)
-            predicted_class = tf.argmax(predictions, axis=1)
-            loss = self.loss_fcn(y, tf.cast(predicted_class, tf.float32))
-        breakpoint()
+            
+#            print('\nDiscriminator preds:')
+#            preds = tf.argmax(predictions, axis=1)
+#            for true, pred in zip(y, preds):
+#                print(f'   {true}  ===>  {pred}')
+            
+            loss = self.loss_fcn(y, predictions[:, 1])
 
         gradients = tape.gradient(loss, self.discriminator.trainable_variables)
-        breakpoint()
         self.disc_optimizer.apply_gradients(zip(gradients, self.discriminator.trainable_variables))
         return loss
 
 
-    def TrainGenerator(self, batch):
-        noise = tf.random.normal([batch_size, noise_dim])
-        generated_data = self.generator(noise)
-        generated_df = pd.DataFrame(generated_data.numpy(), columns=self.features)
-        generated_df['LABEL'] = 1
-
-        batch = pd.concat([batch, generated_df], ignore_index=True)
-
-        X = batch[self.features].values
-        y = batch['LABEL'].values
-
-        X = tf.convert_to_tensor(X, dtype=tf.float32)
-        y = tf.convert_to_tensor(y, dtype=tf.float32)
-
+    def TrainGenerator(self):
         with tf.GradientTape() as tape:
-            predictions = self.discriminator(X, training=True)
-            predicted_class = tf.argmax(predictions, axis=1)
-            loss = self.loss_fcn(y, tf.cast(predicted_class, tf.float32))
+            noise = tf.random.normal([self.batch_size, self.noise_dim])
+            gen_data = self.generator(noise, training=True)
+            predictions = self.discriminator(gen_data, training=True)
+            loss = self.loss_fcn(tf.ones_like(predictions[:, 1]), predictions[:, 1])
 
         gradients = tape.gradient(loss, self.generator.trainable_variables)
         self.gen_optimizer.apply_gradients(zip(gradients, self.generator.trainable_variables))
         return loss
 
 
-    def CreateBatches(self, dataframe):
-        return [dataframe.iloc[i:i + self.batch_size] for i in range(0, len(dataframe), self.batch_size)]
-
-
 
 if __name__ == '__main__':
     dataframe = pd.read_csv('data/diabetes.csv', index_col=False)
     dataframe = dataframe[0:1000]
-
-    features = list(dataframe.columns)
-    gan = GAN(20, [0, 1], features)
+    columns = list(dataframe.columns)
 
     scaler = StandardScaler()
-    dataframe_scaled = pd.DataFrame(scaler.fit_transform(dataframe[features]), columns=features)
-    dataframe[features] = dataframe_scaled
+    dataframe = pd.DataFrame(scaler.fit_transform(dataframe), columns=columns)
+
+    gan = GAN(20, columns)
     gan.fit(dataframe)
 
 
