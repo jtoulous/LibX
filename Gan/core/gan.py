@@ -52,6 +52,12 @@ class GAN():
             batches = dataset_shuffled.batch(self.batch_size, drop_remainder=True)
             for batch in batches:
                 losses['discriminator'].append(self.TrainDiscriminator(batch))
+                
+                ##SURVEILLER LA LOSS DU GENERATOR ET ADAPTER SON NOMBRE D ENTRAINEMENT EN FONCTION
+                self.TrainGenerator()
+                self.TrainGenerator()
+                self.TrainGenerator()
+                self.TrainGenerator()
                 losses['generator'].append(self.TrainGenerator())
 
             avg_disc_loss = sum(losses['discriminator']) / len(losses['discriminator'])
