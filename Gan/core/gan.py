@@ -44,26 +44,25 @@ class GAN():
     def fit(self, df):
         dataset = tf.convert_to_tensor(df.values, dtype=tf.float32)
         dataset = tf.data.Dataset.from_tensor_slices(dataset)
-        
+        max_iter = 10
+
         for epoch in range(self.epochs):
             print(f'\nEPOCH {epoch}')
-            losses = {'discriminator': [], 'generator': []}
             dataset_shuffled = dataset.shuffle(buffer_size=len(dataset))
             batches = dataset_shuffled.batch(self.batch_size, drop_remainder=True)
+            loss_disc = 0.8
+            loss_gen = 1.2
             for batch in batches:
-                losses['discriminator'].append(self.TrainDiscriminator(batch))
+                iteration = 0
+                while loss_disc > 0.7 and iteration < max_iter:
+                    loss_disc = self.TrainDiscriminator(batch)
                 
-                ##SURVEILLER LA LOSS DU GENERATOR ET ADAPTER SON NOMBRE D ENTRAINEMENT EN FONCTION
-                self.TrainGenerator()
-                self.TrainGenerator()
-                self.TrainGenerator()
-                self.TrainGenerator()
-                losses['generator'].append(self.TrainGenerator())
+                iteration = 0
+                while loss_gen > 1.1 and iteration < max_iter:
+                    loss_gen = self.TrainGenerator()
 
-            avg_disc_loss = sum(losses['discriminator']) / len(losses['discriminator'])
-            avg_gen_loss = sum(losses['generator']) / len(losses['generator'])
-            print(f'discriminator loss = {avg_disc_loss:.4f}')
-            print(f'generator loss = {avg_gen_loss:.4f}')
+            print(f'discriminator loss = {loss_disc:.4f}')
+            print(f'generator loss = {loss_gen:.4f}')
         
         return self
 
@@ -114,7 +113,6 @@ class GAN():
 
 if __name__ == '__main__':
     dataframe = pd.read_csv('data/diabetes.csv', index_col=False)
-    dataframe = dataframe[0:1000]
     columns = list(dataframe.columns)
 
     scaler = StandardScaler()
