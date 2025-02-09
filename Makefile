@@ -12,14 +12,8 @@ venv:
 install:
 	@echo "$(GREEN) ===> installing dependencies..."
 	@. virtualEnv/bin/activate && pip install -r requirements.txt
-#	@. virtualEnv/bin/activate && pip install -e .
-#	@rm -rf core/utils.egg-info
-	@echo " ===> Done.$(RESET)"
-
-reset:
-	@echo "$(GREEN) ===> resetting models..."
-#	@rm -f core/agents/trained/*.pkl
-#	@rm -f core/agents/scalers/*.pkl
+	@. virtualEnv/bin/activate && pip install -e .
+#	@rm -rf core/core.egg-info
 	@echo " ===> Done.$(RESET)"
 
 clean:
