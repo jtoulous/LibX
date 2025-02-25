@@ -142,3 +142,32 @@ def k_cluster(X=None, Y=None , df=None, prompt=False, stats=True, n_clusters=3):
     plt.show()
 
 
+def pair(df):
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import seaborn as sns
+
+    columns = list(df.columns)
+    columns_to_plot = []
+    
+    while True:
+        print()
+        for i, col in enumerate(columns):
+            print(f'{i} - {col}')
+        print('Type \'done\' if finished')
+        choice = input('\nChoose an index: ')
+        
+        if choice == 'done':
+            break
+        else:
+            try:
+                choice = int(choice)
+                columns_to_plot.append(columns.pop(choice))
+
+            except Exception:
+                print('Bad input, try again.')
+
+    df_plot = df[columns_to_plot]
+    sns.pairplot(df_plot)
+    plt.show()
